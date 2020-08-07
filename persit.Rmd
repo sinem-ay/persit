@@ -1,0 +1,479 @@
+---
+title: "Person Situation Interaction Analysis with LMM"
+output: html_notebook
+editor_options: 
+  chunk_output_type: inline
+---
+
+# Introduction
+
+The empricial paper analysis (for completing 3rd year of Psychology studies) conducted in RStudio with various packages. The data collected from Florida Atlantic University students under the project named 'Understanding Person-Situation Transactions in Real Life' by Sherman between 2014 and 2017. The **data** file contains two dataset (.csv) that collected information about personality scores and situational characteristics of the events (with pictures). To beging the analysis of the research, the required packages and datasets loaded.
+
+```{r load_packages}
+library(tidyverse) ## the package to manipulate data
+library(reticulate) ## the package to use python RStudio
+library(dplyr) ## the package to manipulate the data
+library(psych) ## the package for psychology related computations (i.e. scoring the )
+library(remotes)
+library(qscorer) ## the package to score health-related questionnaires (i.e. BDI-II)
+library(scales)
+```
+
+```{r load_data}
+personality <- read_csv("data/Measuring_Situations__Visit_1_cleaned-2017_02_14.csv")
+situations <- read_csv("data/Narrative Merged L1 Dataset 2017-03-06.csv")
+```
+
+## Missing Data
+The missing data from the samples eliminated to preserve the analysis. Therefore, 291 participant remained.
+
+```{r missing_values}
+situations <- situations[!(situations$SID %in% c("299":"305")),]
+personality <- personality[-c(294, 295, 296, 297, 298), ]
+personality <- personality[-c(292), ]
+personality <- personality[-c(291), ]
+```
+
+## Description of the Personality Data and Scoring the Results
+* 'BFAS' represents Big Five Aspects Scales + Honesty/Humility
+* 'CAQ' represents California Adult Q-sort
+* 'SHS' represents Subjective Happiness Scale
+* 'NARQ' represents NArcissistic Admiration and Rivalry Questionnaire
+* 'SOI' represents Sociosexual Orientation Inventory
+* 'MAPP' represents Multisource Assessment of Personality Pathology
+* 'BDI' represents Beck Depression Inventory
+(for further information, request excel sheet)
+
+First of all, the scoring items started with BFAS + Honesty/Humility. The facets determined with the manual. From BFAS_1 to BFAS_20 is neuroticism; BFAS_21 to BFAS_40 is agreeableness; BFAS_41 to BFAS_60 is conscientiousness; BFAS_61 to BFAS_80 is extraversion; BFAS_81 to BFAS_100 is openness; BFAS_101 to BFAS_120 is honesty/humility.
+Also, the reversed items determined. Below the code, you can see two tables, one is for descriptives and other one is for individual scores. The 'psych' package used for the scoring.
+
+```{r scoring_BFAS_with_psych}
+BFAS_list <- list(N = c("BFAS_1","BFAS_2","BFAS_3","BFAS_4","BFAS_5","BFAS_6","-BFAS_7","-BFAS_8","-BFAS_9","-BFAS_10","BFAS_11","BFAS_12","BFAS_13","BFAS_14","BFAS_15","BFAS_16","-BFAS_17","-BFAS_18","-BFAS_19","-BFAS_20"),
+                    A = c("BFAS_21", "BFAS_22", "BFAS_23", "BFAS_24", "BFAS_25", "-BFAS_26", "-BFAS_27", "-BFAS_28", "-BFAS_29", "-BFAS_30", "BFAS_31", "BFAS_32", "BFAS_33", "BFAS_34", "-BFAS_35", "-BFAS_36", "-BFAS_37", "-BFAS_38", "-BFAS_39", "-BFAS_40"),
+                    C = c("BFAS_41", "BFAS_42", "BFAS_43", "BFAS_44", "-BFAS_45", "-BFAS_46", "-BFAS_47", "-BFAS_48", "-BFAS_49", "-BFAS_50", "BFAS_51", "BFAS_52", "BFAS_53", "BFAS_54", "BFAS_55", "BFAS_56", "-BFAS_57", "-BFAS_58", "-BFAS_59", "-BFAS_60"),
+                    E = c("BFAS_61","BFAS_62","BFAS_63","BFAS_64","BFAS_65","-BFAS_66","-BFAS_67","-BFAS_68","-BFAS_69","-BFAS_70","BFAS_71","BFAS_72","BFAS_73","BFAS_74","BFAS_75","BFAS_76","-BFAS_77","-BFAS_78","-BFAS_79","-BFAS_80"),
+                    O = c("BFAS_81", "BFAS_82", "BFAS_83", "BFAS_84", "BFAS_85", "BFAS_86", "-BFAS_87", "-BFAS_88", "-BFAS_89", "-BFAS_90", "BFAS_91", "BFAS_92", "BFAS_93", "BFAS_94", "BFAS_95", "BFAS_96", "-BFAS_97", "-BFAS_98", "-BFAS_99", "-BFAS_100"),
+                    H = c("BFAS_101", "BFAS_102", "BFAS_103", "BFAS_104", "BFAS_105", "-BFAS_106", "-BFAS_107", "-BFAS_108", "-BFAS_109", "-BFAS_110", "BFAS_111", "BFAS_112", "BFAS_113", "BFAS_114", "-BFAS_115", "-BFAS_116", "-BFAS_117", "-BFAS_118", "-BFAS_119", "-BFAS_120"))
+
+BFAS_scales <- scoreItems(BFAS_list, personality)
+BFAS_scales
+#print(BFAS_scales, short = FALSE) if we want to see correlation of every single item - not necessary right now
+BFAS_scores <- BFAS_scales$scores
+headTail(round(BFAS_scores)) #to see each individual's scores on BFAS overall - rounded version
+```
+
+Secondly, BDI-II scores analysed. For scoring, the items rescaled due to rematching the questions with original ones. The disorganized scale changed to 0-3 scale. The scores measured with 'qscorer' package which uses for BDI-II scoring. The factor variables added for further analysis; (#1-normal; #2-mild mood disorder; #3-borderline clinical depression; #4-moderate; #5-severe; #6-extreme -> leveling is based on manual). The inline output demonstrates the average scores with their levels.
+
+```{r scoring_BDI}
+BDI_rescaled <- data.frame(rescale(personality$BDI1, to = c(0,3)), 
+     rescale(personality$BDI2, to = c(0,3)), rescale(personality$BDI3, to = c(0,3)), rescale(personality$BDI4, to = c(0,3)), rescale(personality$BDI5, to = c(0,3)), rescale(personality$BDI6, to = c(0,3)), rescale(personality$BDI7, to = c(0,3)), rescale(personality$BDI8, to = c(0,3)), rescale(personality$BDI9, to = c(0,3)), rescale(personality$BDI10, to = c(0,3)), rescale(personality$BDI11, to = c(0,3)), rescale(personality$BDI12, to = c(0,3)), rescale(personality$BDI13, to = c(0,3)), rescale(personality$BDI14, to = c(0,3)), rescale(personality$BDI15, to = c(0,3)), rescale(personality$BDI16, to = c(0,3)), rescale(personality$BDI17, to = c(0,3)), rescale(personality$BDI18, to = c(0,3)), rescale(personality$BDI19, to = c(0,3)), rescale(personality$BDI20, to = c(0,3)), rescale(personality$BDI21, to = c(0,3)))
+
+names(BDI_rescaled) [1] <- "BDI1"
+names(BDI_rescaled) [2] <- "BDI2"
+names(BDI_rescaled) [3] <- "BDI3"
+names(BDI_rescaled) [4] <- "BDI4"
+names(BDI_rescaled) [5] <- "BDI5"
+names(BDI_rescaled) [6] <- "BDI6"
+names(BDI_rescaled) [7] <- "BDI7"
+names(BDI_rescaled) [8] <- "BDI8"
+names(BDI_rescaled) [9] <- "BDI9"
+names(BDI_rescaled) [10] <- "BDI10"
+names(BDI_rescaled) [11] <- "BDI11"
+names(BDI_rescaled) [12] <- "BDI12"
+names(BDI_rescaled) [13] <- "BDI13"
+names(BDI_rescaled) [14] <- "BDI14"
+names(BDI_rescaled) [15] <- "BDI15"
+names(BDI_rescaled) [16] <- "BDI16"
+names(BDI_rescaled) [17] <- "BDI17"
+names(BDI_rescaled) [18] <- "BDI18"
+names(BDI_rescaled) [19] <- "BDI19"
+names(BDI_rescaled) [20] <- "BDI20"
+names(BDI_rescaled) [21] <- "BDI21"
+
+     
+BDI_rescaled <- scoring_bdi(
+  BDI_rescaled,
+  items = 1:21,
+  keep = TRUE,
+  nvalid = 17,
+  digits = NULL,
+  version = "BDI-II"
+)
+
+print(BDI_rescaled$score.bdi) # it shows the scores of individuals
+
+BDI_rescaled$score.bdi_f <- cut(BDI_rescaled$score.bdi, c(-Inf,10,16,20,30,40,Inf), c(1,2,3,4,5,6)) #1-normal; #2-mild mood disorder; #3-borderline clinical depression; #4-moderate; #5-severe; #6-extreme
+
+print(BDI_rescaled$score.bdi_f)
+```
+
+Next scoring is MAPP (Multisource Assessment of Personality Pathology). Again, the 'psych' package used for scoring. The facets of MAPP divided as PND (paranoid), SZT (schizotypal), SZD (schizoid), BDL (borderline), NAR (narcissistic), ATS (antisocial), HST (histrionic), OBC (obsessive), AVD (avoidant), DEP (dependent). MAPP scores determined with manual and psych package. Below the codes, you can see the table of each individual with their scoring in each facets.
+
+```{r scoring_MAPP}
+MAPP_list <- list(PND=c("MAPP_18", "MAPP_28", "MAPP_39", "MAPP_60", "MAPP_68", "MAPP_74", "MAPP_79"), 
+                  SZT=c("MAPP_2", "MAPP_10", "MAPP_20", "MAPP_30", "MAPP_40", "MAPP_41", "MAPP_62", "MAPP_69", "MAPP_77"),
+                  SZD=c("MAPP_1", "MAPP_8", "MAPP_9", "MAPP_19", "MAPP_29", "MAPP_50", "MAPP_61"),
+                  BDL=c("MAPP_3", "MAPP_12", "MAPP_22", "MAPP_32", "MAPP_33", "MAPP_44", "MAPP_52", "MAPP_53", "MAPP_70"),
+                  NAR=c("MAPP_4", "MAPP_14", "MAPP_24", "MAPP_35", "MAPP_46", "MAPP_55", "MAPP_72", "MAPP_76", "MAPP_78", "MAPP_80"),
+                  ATS=c("MAPP_11", "MAPP_21", "MAPP_31", "MAPP_42", "MAPP_43", "MAPP_51", "MAPP_63"),
+                  HST=c("MAPP_13", "MAPP_23", "MAPP_34", "MAPP_45", "MAPP_54", "MAPP_64", "MAPP_71", "MAPP_75"),
+                  OBC=c("MAPP_7", "MAPP_17", "MAPP_27", "MAPP_38", "MAPP_49", "MAPP_59", "MAPP_67", "MAPP_73"),
+                  AVD=c("MAPP_5", "MAPP_15", "MAPP_25", "MAPP_36", "MAPP_47", "MAPP_56", "MAPP_65"),
+                  DEP=c("MAPP_6", "MAPP_16", "MAPP_26", "MAPP_37", "MAPP_48", "MAPP_57", "MAPP_58", "MAPP_66"))
+
+MAPP_scales <- scoreItems(MAPP_list, personality)
+MAPP_scales
+MAPP_scores <- MAPP_scales$scores
+headTail(round(MAPP_scores))
+```
+
+CAQ (California Adult Q-sort) scored. The manual used to divide questions according to their representative personality facets (same as Big five facets). Questions are divided by each facets. There is another way to score CAQ scores - determine most and least salient categories. Since we are investigating CAQ under the personality, I decided to apply Big Five personality facets on it. It also made the job easier. But it can be extended in the future.
+
+```{r scoring_CAQ}
+CAQ_list <- list(N_CAQ=c("CAQ_13", "CAQ_68", "CAQ_34", "CAQ_47", "CAQ_19", "CAQ_12", "CAQ_82", "CAQ_72", "CAQ_45", "CAQ_40", "CAQ_55", "CAQ_78", "CAQ_10", "CAQ_50", "CAQ_50", "CAQ_89", "CAQ_23", "CAQ_30", "CAQ_38", "-CAQ_98", "-CAQ_8", "-CAQ_70", "-CAQ_60", "-CAQ_88", "CAQ_92", "-CAQ_83", "-CAQ_84", "-CAQ_57", "-CAQ_24", "-CAQ_75", "-CAQ_74", "-CAQ_33"),
+                 E_CAQ=c("CAQ_4", "CAQ_54", "CAQ_92", "CAQ_52", "CAQ_15", "CAQ_20", "CAQ_57", "CAQ_99", "CAQ_43", "CAQ_98", "CAQ_29", "CAQ_18", "CAQ_35", "CAQ_28", "CAQ_95", "-CAQ_79", "-CAQ_14", "-CAQ_45", "-CAQ_30", "-CAQ_25", "-CAQ_48", "-CAQ_97"),
+                 O_CAQ=c("CAQ_51", "CAQ_62", "CAQ_39", "CAQ_16", "CAQ_8", "CAQ_66", "CAQ_3", "CAQ_46", "-CAQ_26", "-CAQ_93", "-CAQ_41", "-CAQ_9", "-CAQ_63", "-CAQ_7"),
+                 C_CAQ=c("CAQ_70", "CAQ_2", "CAQ_8", "CAQ_26", "CAQ_71", "CAQ_83", "CAQ_51", "-CAQ_46", "-CAQ_86", "-CAQ_58", "-CAQ_67", "-CAQ_53", "-CAQ_80", "-CAQ_73"),
+                 A_CAQ=c("CAQ_17", "CAQ_35", "CAQ_28", "CAQ_5", "CAQ_84", "CAQ_56", "CAQ_21", "CAQ_88", "-CAQ_49", "-CAQ_38", "-CAQ_62", "-CAQ_48", "-CAQ_91", "-CAQ_94", "-CAQ_65", "-CAQ_27", "-CAQ_52", "-CAQ_1"))
+
+CAQ_scales <- scoreItems(CAQ_list, personality)
+#CAQ_scales <- scoreOverlap(CAQ_list, personality) #correcting dor overlapping items
+CAQ_scales
+CAQ_scores <- CAQ_scales$scores
+
+headTail(round(CAQ_scores))
+```
+
+SHS(Subjective Happiness Scale) consists 4 question with one reversed item.
+
+```{r scoring_shs}
+SHS_list <- list(SHS=c("SHS1", "SHS2", "SHS3", "-SHS4"))
+
+SHS_scales <- scoreItems(SHS_list, personality)
+SHS_scales
+SHS_scores <-SHS_scales$scores
+
+headTail(round(SHS_scores))
+SHS_scales
+```
+
+NARQ(Narcissistic Admiration and Rivalry Questionnaire) again scored with psych and divided two main facets which are admiration and rivalry (there are subfacets under those, but I did not go that far; thought it is enough).
+
+```{r scoring_NARQ}
+NARQ_list <- list(Adm=c("NARQ_1", "NARQ_2", "NARQ_3", "NARQ_5", "NARQ_7", "NARQ_8", "NARQ_15", "NARQ_16", "NARQ_18"),
+             Riv=c("NARQ_4", "NARQ_6", "NARQ_9", "NARQ_10", "NARQ_11", "NARQ_12", "NARQ_13", "NARQ_14", "NARQ_17"))
+
+NARQ_scales <- scoreItems(NARQ_list, personality)
+
+NARQ_scores <- NARQ_scales$scores
+headTail(round(NARQ_scores))
+NARQ_scales 
+```
+
+SOI(Sociosexual Orientation Inventory) again scored with psych. It divided into 3 facets which are attitude, behavior, and desire. 
+
+```{r scoring_SOI}
+SOI_list <- list(Att=c("SOI4", "SOI5", "-SOI6"),
+                 Beh=c("SOI_1", "SOI_2", "SOI_3"),
+                 Des=c("SOI7", "SOI8", "SOI9"))
+
+SOI_scales <- scoreItems(SOI_list, personality)
+SOI_scales
+SOI_scores <- SOI_scales$scores
+headTail(round(SOI_scores))
+```
+
+### Additional analysis
+The 'psych' package used to demonstrate descriptive statistics of the each scorings. This part was not necessary for initial analysis, however, it provides useful information.
+
+```{r descrptive_pairs_panels}
+describe(BFAS_scores) # BFAS_scores is changeable with each item_scores
+pairs.panels(BFAS_scores, pch = '.')
+```
+
+The correlations between personality items. The results were meaningful and requires further analysis (but, it is not necessary for this research).
+
+```{r correlations_personality_items_only}
+cor(BFAS_scores, BDI_rescaled$score.bdi) #the correlation of BFAS and BDI
+cor(BFAS_scores, MAPP_scores) #the correlation of BFAS and MAPP
+cor(MAPP_scores, BDI_rescaled$score.bdi) #the correlation of MAPP and BDI
+cor(BFAS_scores, CAQ_scores) #the correlation of BFAS and CAQ (items categorized as big five facets)
+cor(BFAS_scores, SHS_scores) #the correlation of BFAS and SHS
+cor(BFAS_scores, NARQ_scores)
+cor(MAPP_scores, NARQ_scores) #the correlation of MAPP (because it has narcissism facet) and NARQ
+cor(BFAS_scores, SOI_scores)
+```
+
+## Description of the Situation Data and Scoring the Results and Correlations
+For merging the data, I created first one dataset called situations_2. Basically it is same data with "situations" but it grouped each evaluation of situations that belong to particular individual. Therefore, it was equal data set with personality dataset (n=291). I don't know if its necessary process. I was thinking we can use original situations dataset if we are going to use linear mixed models, but -maybe- creating situations_2 dataset can make the basic correlations easier.
+
+``` {r merging_situations}
+situations_2 <- situations %>% group_by(SID) %>% summarise_all(mean) #1
+
+#a <- list(sit_N=c("BFAS_1", "BFAS_2"),
+                      #sit_A=c("BFAS_3", "BFAS_4"),
+                      #sit_C=c("BFAS_5", "BFAS_6"),
+                      #sit_E=c("BFAS_7", "BFAS_8"),
+                      #sit_O=c("BFAS_9", "BFAS_10"),
+                      #sit_H=c("BFAS_11", "BFAS_12"))
+
+#b <- scoreItems(a, situations_2)
+#b
+#c <- b$scores ----- This is the example of changing scoring according to situations_2 data.
+
+
+per_sit <- merge(x=personality, y=situations_2, by="SID", all.x = TRUE) #step 1 correlations with personality and general situation selection -------- #2
+per_sit <- per_sit %>% filter(!is.na(S8_1))
+```
+
+The scoring of the situation dataset performed below. First of all, BFAS_situation scored with 'psych' package.
+
+```{r scoring_situation_BFAS}
+sit_BFAS_list <- list(
+                      sit_N=c("BFAS_1", "BFAS_2"),
+                      sit_A=c("BFAS_3", "BFAS_4"),
+                      sit_C=c("BFAS_5", "BFAS_6"),
+                      sit_E=c("BFAS_7", "BFAS_8"),
+                      sit_O=c("BFAS_9", "BFAS_10"),
+                      sit_H=c("BFAS_11", "BFAS_12"))
+
+sit_BFAS_scales <- scoreItems(sit_BFAS_list, situations_2)
+sit_BFAS_scales
+sit_BFAS_scores <- sit_BFAS_scales$scores
+headTail(round(sit_BFAS_scores))
+```
+
+Secondly, S8 (DIAMONDS) situational information scored.
+
+```{r scoring_S8}
+S8_list <- list(Du="S8_1",
+                I="S8_2",
+                A="S8_3",
+                M="S8_4",
+                O="S8_5",
+                N="S8_6",
+                De="S8_7",
+                S="S8_8")
+
+S8_scales <- scoreItems(S8_list, situations_2)
+S8_scores <- S8_scales$scores
+headTail(round(S8_scores))
+```
+
+There are more items in the situation dataset. However, I did not focus on them yet. The analysis conducted on the three main sitaution-related items. 
+
+The hypothesis assumed as the "personality predicts behavior across situations". According to hypothesis, statistical analysis divided in to two parts: correlational analysis and linear mixed models. First, let's try to correlate *situation_2* items (BFAS_situation and S8) and personality scores (BFAS_scores, BDI_scores, etc). The correlational tables created by using the 'apaTables' package to simplify the interpretation. The results will be appear on the paper detailly. Also, we used only BFAS from the personality dataset to reduce the workload, however, the analysis will be extended.
+
+```{r correlation_tables}
+library(apaTables)
+library(effectsize)
+bb <- cbind(BFAS_scores, sit_BFAS_scores) # we have to bind the two datasets due to correlational analysis requirements: same matrix
+apa.cor.table(bb, filename="Table1_APA.doc")
+cc <- cbind(BFAS_scores, S8_scores)
+apa.cor.table(cc, filename = "Table2_APA.doc")
+```
+
+## Linear Mixed Models
+
+Linear mixed model performed for the predicting the effect of the situational factors on the personality. We need to determine to factors before performing the model, the factors determined as 'SID' which represents subject id number, each participant evaluated more than one experience that they had during the research. Therefore, there were many answers belongs to a participant. That violates the assumption that we should satisfy to perform regression models. The linear mixed model is perfect choice to investigate the problem. As fixed effects, behavior characteristics assigned. 
+
+First, we should create the scorings based on the *situation* dataset. Because we need the raw dataset, not the reduced one.
+
+```{r scoring_situation_BFAS_2}
+sit_BFAS_list <- list(
+                      sit_N=c("BFAS_1", "BFAS_2"),
+                      sit_A=c("BFAS_3", "BFAS_4"),
+                      sit_C=c("BFAS_5", "BFAS_6"),
+                      sit_E=c("BFAS_7", "BFAS_8"),
+                      sit_O=c("BFAS_9", "BFAS_10"),
+                      sit_H=c("BFAS_11", "BFAS_12"))
+
+sit_BFAS_scales <- scoreItems(sit_BFAS_list, situations)
+sit_BFAS_scales
+sit_BFAS_scores <- sit_BFAS_scales$scores
+headTail(round(sit_BFAS_scores))
+```
+```{r scoring_S8-2}
+S8_list <- list(Du="S8_1",
+                I="S8_2",
+                A="S8_3",
+                M="S8_4",
+                O="S8_5",
+                N="S8_6",
+                De="S8_7",
+                S="S8_8")
+
+S8_scales <- scoreItems(S8_list, situations)
+S8_scores <- S8_scales$scores
+headTail(round(S8_scores))
+```
+
+Later, we need to merge the datasets (personality and situation). For merging the data without violation, I took individual SID's from personality and situation datasets. After taking SID, we are free to merge dataset with previous scorings. 
+
+First of all, I created two data with only SID - one from personality with n=298, another from situations with 5499 observations and 298 levels (subject id). 
+--Done for BFAS_personality, BFAS_situation, and S8 (for now)--
+
+```{r SID_selection}
+sID <- situations %>% select(SID)
+pID <- personality %>% select(SID)
+sitnum <- situations %>% select(SitNum)
+
+BFAS_scores <- cbind(pID, BFAS_scores)
+sit_BFAS_scores <- cbind(sID, sit_BFAS_scores)
+#sit_BFAS_scores <- cbind(sitnum, sit_BFAS_scores)
+S8_scores <- cbind(sID, S8_scores)
+#S8_scores <- na.omit(S8_scores)
+```
+
+After binding the datasets of scores with subject id numbers (SIDs), the aggregation of datasets conducted. 
+--Done for BFAS_siutation and S8, BFAS_situation and BFAS_personality (remaining one: BFAS_personality and S8, will be completed soon)
+```{r BFAS_aggregation}
+sit_agg <- cbind(sit_BFAS_scores, S8_scores) # aggregation of situation datasets - S8 and BFAS_situation
+BFAS_agg <- merge(data.frame(BFAS_scores, row.names = NULL), data.frame(sit_BFAS_scores, row.names = NULL), by='SID', all = TRUE) # aggregation of BFAS personality and BFAS situations
+```
+
+The datasets are ready, it is time to perform linear mixed models. First of all, we are downloading the required packages for the linear mixed models: 'lme' and 'nlme' (nlme is not necessary).
+
+```{r libraries_lme}
+library(lme4)
+library(nlme)
+```
+
+We are starting with our first model which is selected from BFAS_agg (BFAS personality and situation) - situations that are described as *neurotic* and Big Five characteristics:
+
+```{r model1}
+model1 <- lmer(sit_N ~ N + A + C + E + O + H + (1|SID), data = BFAS_agg)
+summary(model1)
+plot(model1)
+```
+
+After creating equation/model and summarize the results, it is time to find more results to interpret the p-values by performing the ANOVA.
+
+```{r model1_pvalue}
+neuro.null = lmer(sit_N ~ A + C + E + O + H + (1|SID), data = BFAS_agg, REML = FALSE)
+neuro.model = lmer(sit_N ~ N + A + C + E + O + H + (1|SID), data = BFAS_agg, REML = FALSE)
+anova(neuro.null, neuro.model)
+extra.null = lmer(sit_N ~ N + A + C + O + H + (1|SID), data = BFAS_agg, REML = FALSE)
+anova(extra.null, neuro.model)
+agree.null = lmer(sit_N ~ N + C + E + O + H + (1|SID), data = BFAS_agg, REML = FALSE)
+anova(agree.null, neuro.model)
+cons.null = lmer(sit_N ~ N + A + E + O + H + (1|SID), data = BFAS_agg, REML = FALSE)
+anova(cons.null, neuro.model)
+open.null = lmer(sit_N ~ N + A + C + E + H + (1|SID), data = BFAS_agg, REML = FALSE)
+anova(open.null, neuro.model)
+hon.null = lmer(sit_N ~ N + A + C + E + O + (1|SID), data = BFAS_agg, REML = FALSE)
+anova(hon.null, neuro.model)
+```
+
+Other models represented below:
+--Done for each facets: situational extraversion, agreeableness, conscientiousness, openness, and honesty/humility--
+
+*Situational Extraversion*
+
+```{r model2}
+model2 <- lmer(sit_E ~ N + A + C + E + O + H + (1|SID), data = BFAS_agg)
+summary(model2)
+```
+```{r model2_pvalue}
+extra.model = lmer(sit_E ~ N + A + C + E + O + H + (1|SID), data = BFAS_agg, REML = FALSE)
+extra2.null = lmer(sit_E ~ N + A + C + O + H + (1|SID), data = BFAS_agg, REML = FALSE)
+anova(extra2.null, extra.model)
+neuro2.null = lmer(sit_E ~ A + C + E + O + H + (1|SID), data = BFAS_agg, REML = FALSE)
+anova(neuro2.null, extra.model)
+agree2.null = lmer(sit_E ~ N + C + E + O + H + (1|SID), data = BFAS_agg, REML = FALSE)
+anova(agree2.null, extra.model)
+cons2.null = lmer(sit_E ~ N + A + E + O + H + (1|SID), data = BFAS_agg, REML = FALSE)
+anova(cons2.null, extra.model)
+open2.null = lmer(sit_E ~ N + A + C + E + H + (1|SID), data = BFAS_agg, REML = FALSE)
+anova(open2.null, extra.model)
+hon2.null = lmer(sit_E ~ N + A + C + E + O + (1|SID), data = BFAS_agg, REML = FALSE)
+anova(hon2.null, extra.model)
+```
+
+*Situational Agreeableness*
+
+```{r model3}
+model3 <- lmer(sit_A ~ N + A + C + E + O + H + (1|SID), data = BFAS_agg)
+summary(model3)
+```
+```{r model3_pvalue}
+agree.model = lmer(sit_A ~ N + A + C + E + O + H + (1|SID), data = BFAS_agg, REML = FALSE)
+extra3.null = lmer(sit_A ~ N + A + C + O + H + (1|SID), data = BFAS_agg, REML = FALSE)
+anova(extra3.null, agree.model)
+neuro3.null = lmer(sit_A ~ A + C + E + O + H + (1|SID), data = BFAS_agg, REML = FALSE)
+anova(neuro3.null, agree.model)
+agree3.null = lmer(sit_A ~ N + C + E + O + H + (1|SID), data = BFAS_agg, REML = FALSE)
+anova(agree3.null, agree.model)
+cons3.null = lmer(sit_A ~ N + A + E + O + H + (1|SID), data = BFAS_agg, REML = FALSE)
+anova(cons3.null, agree.model)
+open3.null = lmer(sit_A ~ N + A + C + E + H + (1|SID), data = BFAS_agg, REML = FALSE)
+anova(open3.null, agree.model)
+hon3.null = lmer(sit_A ~ N + A + C + E + O + (1|SID), data = BFAS_agg, REML = FALSE)
+anova(hon3.null, agree.model)
+```
+
+*Situational Conscientiousness*
+
+```{r model4}
+model4 <- lmer(sit_C ~ N + A + C + E + O + H + (1|SID), data = BFAS_agg)
+summary(model4)
+```
+```{r model4_pvalue}
+cons.model = lmer(sit_C ~ N + A + C + E + O + H + (1|SID), data = BFAS_agg, REML = FALSE)
+extra4.null = lmer(sit_C ~ N + A + C + O + H + (1|SID), data = BFAS_agg, REML = FALSE)
+anova(extra4.null, cons.model)
+neuro4.null = lmer(sit_C ~ A + C + E + O + H + (1|SID), data = BFAS_agg, REML = FALSE)
+anova(neuro4.null, cons.model)
+agree4.null = lmer(sit_C ~ N + C + E + O + H + (1|SID), data = BFAS_agg, REML = FALSE)
+anova(agree4.null, cons.model)
+cons4.null = lmer(sit_C ~ N + A + E + O + H + (1|SID), data = BFAS_agg, REML = FALSE)
+anova(cons4.null, cons.model)
+open4.null = lmer(sit_C ~ N + A + C + E + H + (1|SID), data = BFAS_agg, REML = FALSE)
+anova(open4.null, cons.model)
+hon4.null = lmer(sit_C ~ N + A + C + E + O + (1|SID), data = BFAS_agg, REML = FALSE)
+anova(hon4.null, cons.model)
+```
+
+*Situational Openness to Change*
+
+```{r model5}
+model5 <- lmer(sit_O ~ N + A + C + E + O + H + (1|SID), data = BFAS_agg)
+summary(model5)
+```
+```{r model5_pvalue}
+open.model = lmer(sit_O ~ N + A + C + E + O + H + (1|SID), data = BFAS_agg, REML = FALSE)
+extra5.null = lmer(sit_O ~ N + A + C + O + H + (1|SID), data = BFAS_agg, REML = FALSE)
+anova(extra5.null, open.model)
+neuro5.null = lmer(sit_O ~ A + C + E + O + H + (1|SID), data = BFAS_agg, REML = FALSE)
+anova(neuro5.null, open.model)
+agree5.null = lmer(sit_O ~ N + C + E + O + H + (1|SID), data = BFAS_agg, REML = FALSE)
+anova(agree5.null, open.model)
+cons5.null = lmer(sit_O ~ N + A + E + O + H + (1|SID), data = BFAS_agg, REML = FALSE)
+anova(cons5.null, open.model)
+open5.null = lmer(sit_O ~ N + A + C + E + H + (1|SID), data = BFAS_agg, REML = FALSE)
+anova(open5.null, open.model)
+hon5.null = lmer(sit_O ~ N + A + C + E + O + (1|SID), data = BFAS_agg, REML = FALSE)
+anova(hon5.null, open.model)
+```
+
+*Situational Honesty/Humility*
+
+```{r model6}
+model6 <- lmer(sit_H ~ N + A + C + E + O + H + (1|SID), data = BFAS_agg)
+summary(model6)
+```
+```{r model6_pvalue}
+hon.model = lmer(sit_H ~ N + A + C + E + O + H + (1|SID), data = BFAS_agg, REML = FALSE)
+extra6.null = lmer(sit_H ~ N + A + C + O + H + (1|SID), data = BFAS_agg, REML = FALSE)
+anova(extra6.null, hon.model)
+neuro6.null = lmer(sit_H ~ A + C + E + O + H + (1|SID), data = BFAS_agg, REML = FALSE)
+anova(neuro6.null, hon.model)
+agree6.null = lmer(sit_H ~ N + C + E + O + H + (1|SID), data = BFAS_agg, REML = FALSE)
+anova(agree6.null, hon.model)
+cons6.null = lmer(sit_H ~ N + A + E + O + H + (1|SID), data = BFAS_agg, REML = FALSE)
+anova(cons6.null, hon.model)
+open6.null = lmer(sit_H ~ N + A + C + E + H + (1|SID), data = BFAS_agg, REML = FALSE)
+anova(open6.null, hon.model)
+hon6.null = lmer(sit_H ~ N + A + C + E + O + (1|SID), data = BFAS_agg, REML = FALSE)
+anova(hon6.null, hon.model)
+```
