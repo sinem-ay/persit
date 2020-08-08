@@ -1,5 +1,5 @@
 # Overview
-The project indicates the relationship between personality predispositions and situational characteristics in real life. The statistical analysis performed on RStudio with various packages that are listed below. It is my first analysis attempt with using a programming language, therefore, there might be some errors or mistakes that I made while performing statistical calculations.
+The project indicates the relationship between personality predispositions and situational characteristics in real life. The statistical analysis performed on RStudio with various packages that are listed below. It is my first analysis (of precollected data) attempt with using a programming language, therefore, there might be some errors or mistakes that I made while performing statistical calculations.
 
 # Installation
 ```{r installations}
