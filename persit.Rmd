@@ -20,8 +20,8 @@ library(scales)
 ```
 
 ```{r load_data}
-personality <- read_csv("data/Measuring_Situations__Visit_1_cleaned-2017_02_14.csv")
-situations <- read_csv("data/Narrative Merged L1 Dataset 2017-03-06.csv")
+personality <- read_csv("data/personality.csv")
+situations <- read_csv("data/situations.csv")
 ```
 
 ## Missing Data
